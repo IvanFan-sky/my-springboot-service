@@ -45,6 +45,15 @@ spring:
       flush-mode: on-save
       namespace: spring:session:prod
 
+  # 生产环境缓存配置
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 生产环境1小时TTL
+      cache-null-values: false # 不缓存null值
+      key-prefix: "prod:cache:" # 生产环境缓存key前缀
+      use-key-prefix: true # 使用key前缀
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
@@ -60,9 +69,44 @@ knife4j:
   enable: false # 生产环境关闭API文档
   production: true
 
+# 生产环境监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus # 生产环境只暴露必要端点
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never # 生产环境不显示详细信息
+      show-components: false
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.9,0.95,0.99
+    tags:
+      application: ${app.name:SpringBoot通用后台服务}
+      environment: prod
+
 # 应用自定义配置
 app:
   name: SpringBoot通用后台服务
   version: 1.0.0
   description: 基于SpringBoot3的通用后台服务（生产环境）
-  author: spark 
+  author: spark

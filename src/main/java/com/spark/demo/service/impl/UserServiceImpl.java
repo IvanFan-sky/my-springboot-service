@@ -29,6 +29,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import io.micrometer.core.annotation.Timed;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.StringUtils;
@@ -63,6 +64,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,20}$");
 
     @Override
+    @Timed(value = "user.service.register", description = "用户注册")
     @CacheEvict(value = {"userCache", "authCache"}, allEntries = true)
     public void register(UserDTO userDTO) {
         log.info("用户注册开始，用户名: {}", userDTO.getUsername());
@@ -114,6 +116,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Timed(value = "user.service.login", description = "用户登录")
     public String login(LoginDTO loginDTO) {
         String clientIp = getClientIpAddress();
         log.info("用户登录尝试，用户标识: {}, IP: {}", loginDTO.getUsername(), clientIp);
@@ -536,6 +539,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
 
 
     @Override
+    @Timed(value = "user.service.findByUuid", description = "查找用户通过UUID")
     @Cacheable(value = "userCache", key = "#uuid", condition = "#result != null")
     public User findByUuid(String uuid) {
         if (!StringUtils.hasText(uuid)) {
@@ -550,6 +554,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Timed(value = "user.service.changePassword", description = "修改用户密码")
     @Caching(evict = {
         @CacheEvict(value = "userCache", key = "#uuid"),
         @CacheEvict(value = "authCache", allEntries = true)
@@ -592,6 +597,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
     
     @Override
+    @Timed(value = "user.service.updateUserStatus", description = "更新用户状态")
     @Caching(evict = {
         @CacheEvict(value = "userCache", key = "#uuid"),
         @CacheEvict(value = "authCache", allEntries = true)

@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import io.micrometer.core.annotation.Timed;
 import org.springframework.util.StringUtils;
 
 import java.util.Random;
@@ -31,6 +32,7 @@ public class SmsServiceImpl implements SmsService {
     private static final int CODE_LENGTH = 6; // 验证码长度
     
     @Override
+    @Timed(value = "sms.service.sendVerifyCode", description = "发送短信验证码")
     @CacheEvict(value = "captchaCache", key = "#phone")
     public boolean sendVerifyCode(String phone) {
         if (!StringUtils.hasText(phone)) {
@@ -68,6 +70,7 @@ public class SmsServiceImpl implements SmsService {
     }
     
     @Override
+    @Timed(value = "sms.service.verifyCode", description = "验证短信验证码")
     public boolean verifyCode(String phone, String code) {
         if (!StringUtils.hasText(phone) || !StringUtils.hasText(code)) {
             log.warn("手机号或验证码为空");
@@ -100,6 +103,7 @@ public class SmsServiceImpl implements SmsService {
     }
     
     @Override
+    @Timed(value = "sms.service.removeCode", description = "删除短信验证码")
     @CacheEvict(value = "captchaCache", key = "#phone")
     public void removeCode(String phone) {
         if (StringUtils.hasText(phone)) {

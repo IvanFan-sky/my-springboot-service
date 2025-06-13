@@ -50,6 +50,15 @@ spring:
       flush-mode: on-save
       namespace: spring:session
 
+  # 缓存配置
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${SPRING_CACHE_REDIS_TIME_TO_LIVE:1800000} # 默认30分钟TTL
+      cache-null-values: ${SPRING_CACHE_REDIS_CACHE_NULL_VALUES:false} # 不缓存null值
+      key-prefix: ${SPRING_CACHE_REDIS_KEY_PREFIX:cache:} # 缓存key前缀
+      use-key-prefix: ${SPRING_CACHE_REDIS_USE_KEY_PREFIX:true} # 使用key前缀
+
   # AOP配置
   aop:
     auto: true
@@ -77,6 +86,41 @@ knife4j:
     enable-document-manage: true
     swagger-model-name: '实体类列表'
   production: false # 生产环境建议设为true
+
+# 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env,configprops,beans,mappings
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.9,0.95,0.99
+    tags:
+      application: ${app.name:SpringBoot通用后台服务}
+      environment: ${spring.profiles.active:dev}
 
 # 应用自定义配置
 app:
