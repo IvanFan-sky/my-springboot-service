@@ -38,8 +38,21 @@ INSERT INTO `sys_user` (`uuid`, `username`, `password`, `phone`, `email`, `nickn
 ('admin-uuid-1234-5678-9012-345678901234', 'admin', 'e10adc3949ba59abbe56e057f20f883e', '13800138000', 'admin@example.com', '管理员', 'admin', 1),
 ('user-uuid-1234-5678-9012-345678901234', 'testuser', 'e10adc3949ba59abbe56e057f20f883e', '13800138001', 'test@example.com', '测试用户', 'user', 1);
 
--- 注意：上面的密码是 '123456' 经过MD5+盐值加密后的结果
--- 实际的加密过程是：MD5('123456' + 'spark_demo_salt')
+-- 注意：上面的密码是 '123456' 经过MD5+盐值加密后的结果，现已升级为BCrypt加密
+-- 新用户注册将使用BCrypt加密算法
+
+-- 添加性能优化索引
+ALTER TABLE `sys_user` ADD INDEX `idx_username_status` (`username`, `status`);
+ALTER TABLE `sys_user` ADD INDEX `idx_phone_status` (`phone`, `status`);
+ALTER TABLE `sys_user` ADD INDEX `idx_email_status` (`email`, `status`);
+ALTER TABLE `sys_user` ADD INDEX `idx_role_status` (`role`, `status`);
+ALTER TABLE `sys_user` ADD INDEX `idx_created_time_status` (`created_time`, `status`);
+ALTER TABLE `sys_user` ADD INDEX `idx_updated_time` (`updated_time`);
+
+-- 为日志表添加复合索引优化查询性能
+ALTER TABLE `sys_log` ADD INDEX `idx_operation_time` (`operation`, `created_time`);
+ALTER TABLE `sys_log` ADD INDEX `idx_user_operation` (`user_uuid`, `operation`, `created_time`);
+ALTER TABLE `sys_log` ADD INDEX `idx_ip_time` (`ip`, `created_time`);
 
 -- 创建操作日志表（可选，用于记录用户操作）
 CREATE TABLE IF NOT EXISTS `sys_log` (
@@ -57,4 +70,4 @@ CREATE TABLE IF NOT EXISTS `sys_log` (
   KEY `idx_user_id` (`user_id`),
   KEY `idx_user_uuid` (`user_uuid`),
   KEY `idx_created_time` (`created_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表'; 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
