@@ -26,7 +26,7 @@ import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.DigestUtils;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -766,19 +766,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
         return username.substring(0, 2) + "***@" + parts[1];
     }
     
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    
     /**
-     * 加密密码
+     * 加密密码 - 使用BCrypt加密
      */
     private String encryptPassword(String plainPassword) {
-        String salt = "spark_demo_salt";
-        return DigestUtils.md5DigestAsHex((plainPassword + salt).getBytes());
+        return passwordEncoder.encode(plainPassword);
     }
     
     /**
-     * 验证密码
+     * 验证密码 - 使用BCrypt验证
      */
     private boolean verifyPassword(String plainPassword, String encryptedPassword) {
-        return encryptPassword(plainPassword).equals(encryptedPassword);
+        return passwordEncoder.matches(plainPassword, encryptedPassword);
     }
 
     private String createUserSession(User user, String clientIp) {
