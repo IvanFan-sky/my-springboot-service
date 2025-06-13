@@ -4,6 +4,8 @@ import com.spark.demo.service.SmsService;
 import com.spark.demo.util.RedisUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -29,6 +31,7 @@ public class SmsServiceImpl implements SmsService {
     private static final int CODE_LENGTH = 6; // 验证码长度
     
     @Override
+    @CacheEvict(value = "captchaCache", key = "#phone")
     public boolean sendVerifyCode(String phone) {
         if (!StringUtils.hasText(phone)) {
             log.warn("手机号为空");
@@ -97,6 +100,7 @@ public class SmsServiceImpl implements SmsService {
     }
     
     @Override
+    @CacheEvict(value = "captchaCache", key = "#phone")
     public void removeCode(String phone) {
         if (StringUtils.hasText(phone)) {
             String codeKey = SMS_CODE_PREFIX + phone;
@@ -116,4 +120,4 @@ public class SmsServiceImpl implements SmsService {
         }
         return code.toString();
     }
-} 
+}

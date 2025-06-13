@@ -25,6 +25,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.StringUtils;
@@ -59,6 +63,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,20}$");
 
     @Override
+    @CacheEvict(value = {"userCache", "authCache"}, allEntries = true)
     public void register(UserDTO userDTO) {
         log.info("用户注册开始，用户名: {}", userDTO.getUsername());
         
@@ -258,6 +263,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Cacheable(value = "userCache", key = "'user:id:' + #userId", unless = "#result == null")
     public UserVO getCurrentUserInfo(Long userId) {
         try {
             User user = userMapper.selectById(userId);
@@ -274,6 +280,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Cacheable(value = "userCache", key = "'user:uuid:' + #uuid", unless = "#result == null")
     public UserVO getUserByUuid(String uuid) {
         log.debug("根据UUID获取用户信息: {}", uuid);
         
@@ -297,6 +304,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @CacheEvict(value = {"userCache", "authCache"}, allEntries = true)
     public UserVO addUser(UserDTO userDTO) {
         log.info("管理员新增用户，用户名: {}", userDTO.getUsername());
         
@@ -338,6 +346,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "userCache", key = "'user:uuid:' + #uuid"),
+        @CacheEvict(value = "userCache", allEntries = true),
+        @CacheEvict(value = "authCache", allEntries = true)
+    })
     public void deleteUserByUuid(String uuid) {
         log.info("删除用户，UUID: {}", uuid);
         
@@ -363,6 +376,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "userCache", key = "'user:id:' + #id"),
+        @CacheEvict(value = "userCache", allEntries = true),
+        @CacheEvict(value = "authCache", allEntries = true)
+    })
     public void deleteUserById(Long id) {
         User user = userMapper.selectById(id);
         if (user == null || user.getDeletedTime() != null) {
@@ -373,6 +391,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "userCache", key = "'user:uuid:' + #uuid"),
+        @CacheEvict(value = "userCache", key = "'user:id:' + #result.id", condition = "#result != null"),
+        @CacheEvict(value = "authCache", allEntries = true)
+    })
     public UserVO updateUserByUuid(String uuid, UserDTO userDTO) {
         log.info("更新用户信息，UUID: {}", uuid);
         
@@ -416,6 +439,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "userCache", key = "'user:id:' + #id"),
+        @CacheEvict(value = "userCache", key = "'user:uuid:' + #result.uuid", condition = "#result != null"),
+        @CacheEvict(value = "authCache", allEntries = true)
+    })
     public UserVO updateUser(Long id, UserDTO userDTO) {
         User user = userMapper.selectById(id);
         if (user == null || user.getDeletedTime() != null) {
@@ -431,6 +459,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Cacheable(value = "userCache", key = "'user:id:' + #id", unless = "#result == null")
     public UserVO getUserById(Long id) {
         User user = userMapper.selectById(id);
         if (user == null || user.getDeletedTime() != null) {
@@ -507,6 +536,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
 
 
     @Override
+    @Cacheable(value = "userCache", key = "#uuid", condition = "#result != null")
     public User findByUuid(String uuid) {
         if (!StringUtils.hasText(uuid)) {
             return null;
@@ -520,6 +550,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "userCache", key = "#uuid"),
+        @CacheEvict(value = "authCache", allEntries = true)
+    })
     public void changePassword(String uuid, String oldPassword, String newPassword) {
         log.info("用户修改密码，UUID: {}", uuid);
         
@@ -558,6 +592,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     }
     
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "userCache", key = "#uuid"),
+        @CacheEvict(value = "authCache", allEntries = true)
+    })
     public UserVO updateUserStatus(String uuid, Integer status) {
         log.info("修改用户状态，UUID: {}, 新状态: {}", uuid, status);
         

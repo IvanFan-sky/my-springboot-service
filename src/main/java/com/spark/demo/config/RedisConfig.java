@@ -6,8 +6,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.cache.interceptor.CacheResolver;
+import org.springframework.cache.interceptor.KeyGenerator;
+import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -18,7 +24,10 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.*;
 import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Redis 统一配置类
@@ -45,7 +54,13 @@ import java.time.Duration;
     maxInactiveIntervalInSeconds = 1800, // Session超时30分钟
     redisNamespace = "spring:session"     // Session命名空间
 )
-public class RedisConfig {
+public class RedisConfig implements CachingConfigurer {
+
+    @Value("${spring.cache.redis.time-to-live:PT30M}")
+    private Duration defaultCacheTtl;
+
+    @Value("${spring.cache.redis.cache-null-values:false}")
+    private boolean cacheNullValues;
 
     /**
      * 主要的RedisTemplate配置 - 使用Jackson2JsonRedisSerializer（不包含类型信息，避免乱码）
@@ -74,6 +89,14 @@ public class RedisConfig {
         template.afterPropertiesSet();
         
         log.info("✅ 主Redis模板配置完成 - 使用清洁JSON序列化器（避免乱码）");
+        
+        // 预热连接池
+        try {
+            template.opsForValue().get("__connection_test__");
+            log.info("✅ Redis连接池预热完成");
+        } catch (Exception e) {
+            log.warn("Redis连接池预热失败，但不影响正常使用: {}", e.getMessage());
+        }
         return template;
     }
 
@@ -101,6 +124,14 @@ public class RedisConfig {
         template.afterPropertiesSet();
         
         log.info("✅ 通用Redis模板配置完成 - 包含类型信息（复杂对象专用）");
+        
+        // 监控连接状态
+        try {
+            template.opsForValue().get("__generic_connection_test__");
+            log.info("✅ 通用Redis模板连接测试成功");
+        } catch (Exception e) {
+            log.warn("通用Redis模板连接测试失败: {}", e.getMessage());
+        }
         return template;
     }
 
@@ -125,21 +156,110 @@ public class RedisConfig {
      * 使用清洁的JSON序列化，缓存数据可读性好
      */
     @Bean
+    @Override
+    public CacheManager cacheManager() {
+        return cacheManager(null);
+    }
+
+    @Bean
     public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
-        // 配置缓存策略
-        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(30)) // 默认缓存30分钟
+        // 默认缓存配置
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(defaultCacheTtl) // 使用配置的默认TTL
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
                         createCleanJsonSerializer()))
-                .disableCachingNullValues(); // 不缓存null值
+                .prefixCacheNameWith("cache:") // 添加缓存前缀
+                .computePrefixWith(cacheName -> "app:cache:" + cacheName + ":"); // 自定义前缀计算
+
+        if (!cacheNullValues) {
+            defaultConfig = defaultConfig.disableCachingNullValues();
+        }
+
+        // 针对不同缓存名称的特定配置
+        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+        
+        // 用户缓存 - 较长TTL
+        cacheConfigurations.put("userCache", defaultConfig.entryTtl(Duration.ofHours(2)));
+        
+        // 短期缓存 - 较短TTL
+        cacheConfigurations.put("shortCache", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        
+        // 验证码缓存 - 很短TTL
+        cacheConfigurations.put("captchaCache", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+        
+        // 权限缓存 - 中等TTL
+        cacheConfigurations.put("authCache", defaultConfig.entryTtl(Duration.ofMinutes(30)));
 
         RedisCacheManager cacheManager = RedisCacheManager.builder(redisConnectionFactory)
-                .cacheDefaults(config)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigurations)
+                .transactionAware() // 支持事务
                 .build();
         
-        log.info("✅ Redis缓存管理器配置完成 - 使用JSON序列化");
+        log.info("✅ Redis缓存管理器配置完成 - 使用JSON序列化，默认TTL: {}", defaultCacheTtl);
         return cacheManager;
+    }
+
+    /**
+     * 自定义缓存键生成器
+     */
+    @Bean
+    @Override
+    public KeyGenerator keyGenerator() {
+        return new KeyGenerator() {
+            @Override
+            public Object generate(Object target, Method method, Object... params) {
+                StringBuilder sb = new StringBuilder();
+                sb.append(target.getClass().getSimpleName()).append(":");
+                sb.append(method.getName()).append(":");
+                for (Object param : params) {
+                    if (param != null) {
+                        sb.append(param.toString()).append(":");
+                    } else {
+                        sb.append("null:");
+                    }
+                }
+                // 移除最后一个冒号
+                if (sb.length() > 0 && sb.charAt(sb.length() - 1) == ':') {
+                    sb.setLength(sb.length() - 1);
+                }
+                return sb.toString();
+            }
+        };
+    }
+
+    /**
+     * 缓存错误处理器
+     */
+    @Bean
+    @Override
+    public CacheErrorHandler errorHandler() {
+        return new SimpleCacheErrorHandler() {
+            @Override
+            public void handleCacheGetError(RuntimeException exception, org.springframework.cache.Cache cache, Object key) {
+                log.error("缓存获取异常 - Cache: {}, Key: {}", cache.getName(), key, exception);
+                super.handleCacheGetError(exception, cache, key);
+            }
+
+            @Override
+            public void handleCachePutError(RuntimeException exception, org.springframework.cache.Cache cache, Object key, Object value) {
+                log.error("缓存存储异常 - Cache: {}, Key: {}", cache.getName(), key, exception);
+                super.handleCachePutError(exception, cache, key, value);
+            }
+
+            @Override
+            public void handleCacheEvictError(RuntimeException exception, org.springframework.cache.Cache cache, Object key) {
+                log.error("缓存清除异常 - Cache: {}, Key: {}", cache.getName(), key, exception);
+                super.handleCacheEvictError(exception, cache, key);
+            }
+
+            @Override
+            public void handleCacheClearError(RuntimeException exception, org.springframework.cache.Cache cache) {
+                log.error("缓存清空异常 - Cache: {}", cache.getName(), exception);
+                super.handleCacheClearError(exception, cache);
+            }
+        };
     }
     
     /**
