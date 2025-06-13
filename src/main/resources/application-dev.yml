@@ -1,0 +1,24 @@
+logging:
+  level:
+    # 应用日志
+    com.spark.demo: DEBUG
+    
+    # Spring Session相关 - 减少DEBUG输出
+    org.springframework.session: INFO
+    org.springframework.session.web.http.SessionRepositoryFilter.SESSION_LOGGER: WARN
+    
+    # Redis相关
+    org.springframework.data.redis: INFO
+    io.lettuce.core: WARN
+    
+    # MyBatis Plus
+    com.baomidou.mybatisplus: INFO
+    
+    # SQL相关
+    java.sql: DEBUG
+    
+    # Spring Security（如果有的话）
+    org.springframework.security: INFO
+    
+    # 根日志级别
+    root: INFO 

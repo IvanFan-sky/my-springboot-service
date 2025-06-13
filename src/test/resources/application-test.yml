@@ -1,0 +1,43 @@
+spring:
+  # 测试环境数据库配置（使用H2内存数据库）
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    hikari:
+      maximum-pool-size: 5
+
+  # 测试环境Redis配置（使用嵌入式Redis或Mock）
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3000ms
+
+  # Session配置
+  session:
+    store-type: none # 测试环境不使用Redis存储Session
+
+# MyBatis-Plus配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl # 测试时不输出SQL日志
+  global-config:
+    db-config:
+      id-type: auto
+    banner: false
+
+# 关闭Knife4j（测试环境不需要）
+knife4j:
+  enable: false
+  production: true
+
+# 日志配置
+logging:
+  level:
+    com.spark.demo: DEBUG
+    root: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" 

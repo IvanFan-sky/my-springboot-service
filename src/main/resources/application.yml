@@ -1,0 +1,82 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+    session:
+      timeout: 30m # Session超时时间30分钟
+      cookie:
+        max-age: 1800 # Cookie最大存活时间（秒）
+        http-only: true # 防止XSS攻击
+        secure: false # 本地开发设为false，生产环境建议设为true
+        same-site: lax # 允许跨站请求携带cookie
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/demo_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: 123456
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      auto-commit: true
+      idle-timeout: 30000
+      pool-name: SpringBootJPAHikariCP
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: 
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
+  session:
+    store-type: redis # 使用Redis存储Session
+    timeout: 1800s # 30分钟超时
+    redis:
+      flush-mode: on-save
+      namespace: spring:session
+
+  # AOP配置
+  aop:
+    auto: true
+    proxy-target-class: true
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true # 开启驼峰命名
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 控制台SQL日志
+  global-config:
+    db-config:
+      # 主键策略
+      id-type: auto
+      # 注意：使用时间戳作为逻辑删除字段时，MyBatis-Plus默认配置可能不适用
+      # 我们通过自定义逻辑删除处理器来实现
+    banner: false # 关闭MyBatis-Plus的banner
+  # 类型别名包路径
+  type-aliases-package: com.spark.demo.entity
+
+knife4j:
+  enable: true
+  setting:
+    language: zh-CN
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: '实体类列表'
+  production: false # 生产环境建议设为true
+
+# 应用自定义配置
+app:
+  name: SpringBoot通用后台服务
+  version: 1.0.0
+  description: 基于SpringBoot3的通用后台服务
+  author: spark
