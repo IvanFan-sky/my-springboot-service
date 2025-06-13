@@ -73,6 +73,18 @@ bin/
 # VS Code
 .vscode/
 
+### 环境变量和敏感信息 ###
+.env
+.env.local
+.env.*.local
+*.log
+logs/
+
+### 数据库文件 ###
+*.db
+*.sqlite
+*.sqlite3
+
 # Mac
 .DS_Store
 
