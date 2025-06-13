@@ -24,8 +24,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 全局异常处理器
@@ -42,8 +45,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.OK)
     public Result<Void> handleBusinessException(BusinessException e) {
+        String errorId = generateErrorId();
         String requestInfo = getRequestInfo();
-        log.warn("业务异常: {}, 请求信息: {}", e.getMessage(), requestInfo);
+        log.warn("[{}] 业务异常: {}, 请求信息: {}", errorId, e.getMessage(), requestInfo);
         return Result.fail(e.getResultCode().getCode(), e.getMessage());
     }
 
@@ -195,9 +199,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SQLException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleSQLException(SQLException e) {
+        String errorId = generateErrorId();
         String requestInfo = getRequestInfo();
-        log.error("SQL异常, 请求信息: {}", requestInfo, e);
-        return Result.fail(ResultCode.FAIL.getCode(), "数据库操作失败");
+        // 记录详细错误信息但不暴露给客户端
+        log.error("[{}] SQL异常, 错误码: {}, SQL状态: {}, 请求信息: {}", 
+                 errorId, e.getErrorCode(), e.getSQLState(), requestInfo, e);
+        return Result.fail(ResultCode.FAIL.getCode(), "数据库操作失败，错误ID: " + errorId);
     }
 
     /**
@@ -206,9 +213,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NullPointerException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleNullPointerException(NullPointerException e) {
+        String errorId = generateErrorId();
         String requestInfo = getRequestInfo();
-        log.error("空指针异常, 请求信息: {}", requestInfo, e);
-        return Result.fail(ResultCode.FAIL.getCode(), "系统内部错误");
+        log.error("[{}] 空指针异常, 堆栈信息: {}, 请求信息: {}", 
+                 errorId, getStackTraceInfo(e), requestInfo, e);
+        return Result.fail(ResultCode.FAIL.getCode(), "系统内部错误，错误ID: " + errorId);
     }
 
     /**
@@ -228,9 +237,29 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e) {
+        String errorId = generateErrorId();
         String requestInfo = getRequestInfo();
-        log.error("系统异常, 请求信息: {}", requestInfo, e);
-        return Result.fail(ResultCode.FAIL.getCode(), "系统内部错误，请稍后重试");
+        log.error("[{}] 系统异常, 异常类型: {}, 请求信息: {}", 
+                 errorId, e.getClass().getSimpleName(), requestInfo, e);
+        return Result.fail(ResultCode.FAIL.getCode(), "系统内部错误，请稍后重试，错误ID: " + errorId);
+    }
+
+    /**
+     * 生成错误ID
+     */
+    private String generateErrorId() {
+        return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    /**
+     * 获取堆栈跟踪信息的前几行
+     */
+    private String getStackTraceInfo(Exception e) {
+        StackTraceElement[] stackTrace = e.getStackTrace();
+        if (stackTrace.length > 0) {
+            return stackTrace[0].toString();
+        }
+        return "无堆栈信息";
     }
 
     /**
@@ -246,6 +275,8 @@ public class GlobalExceptionHandler {
                 info.append("URI: ").append(request.getRequestURI());
                 info.append(", Method: ").append(request.getMethod());
                 info.append(", IP: ").append(getClientIpAddress(request));
+                info.append(", Time: ").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                info.append(", UserAgent: ").append(maskUserAgent(request.getHeader("User-Agent")));
                 
                 Long userId = UserContext.getCurrentUserId();
                 if (userId != null) {
@@ -258,6 +289,16 @@ public class GlobalExceptionHandler {
             log.warn("获取请求信息失败", e);
         }
         return "unknown";
+    }
+
+    /**
+     * 脱敏User-Agent信息
+     */
+    private String maskUserAgent(String userAgent) {
+        if (userAgent == null || userAgent.length() <= 50) {
+            return userAgent;
+        }
+        return userAgent.substring(0, 50) + "...";
     }
 
     /**
