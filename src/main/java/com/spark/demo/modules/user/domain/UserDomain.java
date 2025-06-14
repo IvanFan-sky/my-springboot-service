@@ -1,7 +1,7 @@
 package com.spark.demo.modules.user.domain;
 
 import com.spark.demo.entity.User;
-import com.spark.demo.util.PasswordUtil;
+import com.spark.demo.common.util.PasswordUtil;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

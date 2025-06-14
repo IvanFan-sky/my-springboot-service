@@ -1,6 +1,6 @@
 package com.spark.demo.config;
 
-import com.spark.demo.util.RedisUtil;
+import com.spark.demo.common.util.RedisUtil;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

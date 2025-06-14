@@ -1,7 +1,7 @@
 package com.spark.demo.service.impl;
 
 import com.spark.demo.service.SmsService;
-import com.spark.demo.util.RedisUtil;
+import com.spark.demo.common.util.RedisUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;

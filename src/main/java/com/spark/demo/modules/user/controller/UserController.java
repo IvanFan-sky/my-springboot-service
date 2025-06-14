@@ -1,8 +1,8 @@
 package com.spark.demo.modules.user.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.spark.demo.annotation.RequireAuth;
-import com.spark.demo.annotation.RequireRole;
+import com.spark.demo.common.annotation.RequireAuth;
+import com.spark.demo.common.annotation.RequireRole;
 import com.spark.demo.common.context.UserContext;
 import com.spark.demo.common.result.Result;
 import com.spark.demo.dto.UserDTO;
