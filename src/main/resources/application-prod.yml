@@ -1,42 +1,43 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   servlet:
-    context-path: /api
+    context-path: ${CONTEXT_PATH:/api}
     session:
-      timeout: 30m
+      timeout: ${SESSION_TIMEOUT:30m}
       cookie:
-        max-age: 1800
+        max-age: ${COOKIE_MAX_AGE:1800}
         http-only: true
-        secure: true # 生产环境启用HTTPS
+        secure: ${COOKIE_SECURE:true}
+        same-site: strict
 
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://your-production-host:3306/demo_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true
-    username: ${DB_USERNAME:demo_user}
-    password: ${DB_PASSWORD:demo_password}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/demo_db_prod?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
     hikari:
-      minimum-idle: 10
-      maximum-pool-size: 50
-      auto-commit: true
-      idle-timeout: 30000
-      pool-name: SpringBootJPAHikariCP
-      max-lifetime: 1800000
-      connection-timeout: 30000
+      minimum-idle: ${DB_POOL_MIN_IDLE:20}
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:100}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION:60000}
 
   data:
     redis:
-      host: ${REDIS_HOST:your-redis-host}
+      host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:your-redis-password}
-      database: 0
-      timeout: 3000ms
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:5000ms}
       lettuce:
         pool:
-          max-active: 20
-          max-wait: -1ms
-          max-idle: 10
-          min-idle: 2
+          max-active: ${REDIS_POOL_MAX_ACTIVE:32}
+          max-wait: ${REDIS_POOL_MAX_WAIT:5000ms}
+          max-idle: ${REDIS_POOL_MAX_IDLE:16}
+          min-idle: ${REDIS_POOL_MIN_IDLE:4}
 
   session:
     store-type: redis
@@ -57,7 +58,7 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl # 生产环境关闭SQL日志
+    log-impl: # 生产环境不输出SQL日志
   global-config:
     db-config:
       logic-delete-field: deletedTime
@@ -66,7 +67,7 @@ mybatis-plus:
     banner: false
 
 knife4j:
-  enable: false # 生产环境关闭API文档
+  enable: ${API_DOC_ENABLED:false}
   production: true
 
 # 生产环境监控配置
@@ -74,12 +75,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,metrics,prometheus # 生产环境只暴露必要端点
+        include: health,info,metrics,prometheus
       base-path: /actuator
   endpoint:
     health:
-      show-details: never # 生产环境不显示详细信息
-      show-components: false
+      show-details: when-authorized
+      show-components: never
     metrics:
       enabled: true
     prometheus:
@@ -91,10 +92,11 @@ management:
       enabled: true
     diskspace:
       enabled: true
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
+  metrics:
     distribution:
       percentiles-histogram:
         http.server.requests: true
@@ -110,3 +112,28 @@ app:
   version: 1.0.0
   description: 基于SpringBoot3的通用后台服务（生产环境）
   author: spark
+  jwt:
+    secret: ${JWT_SECRET:}
+    expiration: ${JWT_EXPIRATION:2}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:7}
+  
+  security:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+      allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+      allowed-headers: ${CORS_ALLOWED_HEADERS:Authorization,Content-Type,X-Requested-With}
+      allow-credentials: ${CORS_ALLOW_CREDENTIALS:false}
+      max-age: ${CORS_MAX_AGE:3600}
+    
+    rate-limit:
+      enabled: ${RATE_LIMIT_ENABLED:true}
+      default-limit: ${RATE_LIMIT_DEFAULT:100}
+      login-limit: ${RATE_LIMIT_LOGIN:5}
+      sms-limit: ${RATE_LIMIT_SMS:1}
+
+  async:
+    core-pool-size: ${ASYNC_CORE_POOL_SIZE:20}
+    max-pool-size: ${ASYNC_MAX_POOL_SIZE:100}
+    queue-capacity: ${ASYNC_QUEUE_CAPACITY:500}
+    keep-alive-seconds: ${ASYNC_KEEP_ALIVE_SECONDS:60}
+    thread-name-prefix: ${ASYNC_THREAD_NAME_PREFIX:prod-async-}
