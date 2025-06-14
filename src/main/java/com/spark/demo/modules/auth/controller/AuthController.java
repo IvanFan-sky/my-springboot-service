@@ -9,7 +9,9 @@ import com.spark.demo.dto.PasswordLoginDTO;
 import com.spark.demo.dto.SmsLoginDTO;
 import com.spark.demo.dto.UserDTO;
 import com.spark.demo.entity.User;
+import com.spark.demo.modules.auth.dto.LoginWithCaptchaDTO;
 import com.spark.demo.modules.auth.service.AuthService;
+import com.spark.demo.modules.auth.service.CaptchaService;
 import com.spark.demo.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -47,6 +49,9 @@ public class AuthController {
     
     @Autowired
     private AuthService authService;
+    
+    @Autowired
+    private CaptchaService captchaService;
 
     @Operation(
         summary = "用户注册",
@@ -216,6 +221,76 @@ public class AuthController {
             )
             @RequestBody @Validated SmsLoginDTO smsLoginDTO) {
         String sessionId = userService.smsLogin(smsLoginDTO);
+        return Result.success(sessionId);
+    }
+
+    @Operation(
+        summary = "滑动验证码登录",
+        description = """
+            **功能说明**：带滑动验证码的安全登录接口
+            
+            **使用流程**：
+            1. 先调用 `/v1/captcha/generate` 获取验证码图片
+            2. 用户完成滑动验证后获取滑动位置
+            3. 使用用户名、密码和验证码信息进行登录
+            
+            **安全特性**：
+            - 防止暴力破解
+            - 防止机器人攻击
+            - 增强登录安全性
+            
+            **业务规则**：
+            - 验证码必须先验证通过才能登录
+            - 验证码一次性使用，验证后立即失效
+            - 滑动位置允许5像素误差
+            """,
+        tags = {"用户认证"}
+    )
+    @ApiDocUtil.AuthApiResponses
+    @PostMapping("/captcha-login")
+    public Result<String> captchaLogin(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "带验证码的登录信息",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = LoginWithCaptchaDTO.class),
+                    examples = @ExampleObject(
+                        name = "验证码登录示例",
+                        value = """
+                            {
+                              "username": "testuser",
+                              "password": "123456",
+                              "captchaId": "abc123-def456-ghi789",
+                              "sliderX": 120
+                            }
+                            """
+                    )
+                )
+            )
+            @RequestBody @Validated LoginWithCaptchaDTO loginWithCaptchaDTO) {
+        
+        // 先验证滑动验证码
+        Result<Boolean> captchaResult = captchaService.verifyCaptcha(
+            loginWithCaptchaDTO.getCaptchaId(), 
+            loginWithCaptchaDTO.getSliderX()
+        );
+        
+        if (!captchaResult.getData() || captchaResult.getCode() != 200) {
+            log.warn("验证码验证失败 - 用户名: {}, 验证码ID: {}, 滑动位置: {}", 
+                loginWithCaptchaDTO.getUsername(), 
+                loginWithCaptchaDTO.getCaptchaId(), 
+                loginWithCaptchaDTO.getSliderX());
+            return Result.fail("验证码验证失败，请重新验证");
+        }
+        
+        // 验证码通过后进行登录
+        LoginDTO loginDTO = new LoginDTO();
+        loginDTO.setUsername(loginWithCaptchaDTO.getUsername());
+        loginDTO.setPassword(loginWithCaptchaDTO.getPassword());
+        
+        String sessionId = userService.login(loginDTO);
+        log.info("滑动验证码登录成功 - 用户名: {}", loginWithCaptchaDTO.getUsername());
         return Result.success(sessionId);
     }
 

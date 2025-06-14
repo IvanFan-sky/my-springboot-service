@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>滑动验证码演示</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .title {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .captcha-container {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            background: #f9f9f9;
+        }
+
+        .captcha-images {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .background-image {
+            width: 100%;
+            height: 150px;
+            border-radius: 5px;
+            display: block;
+        }
+
+        .slider-container {
+            position: relative;
+            height: 40px;
+            background: #e0e0e0;
+            border-radius: 20px;
+            margin-top: 10px;
+        }
+
+        .slider-track {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            border-radius: 20px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .slider-button {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 36px;
+            height: 36px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            user-select: none;
+        }
+
+        .slider-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">🔐 滑动验证码登录演示</h1>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名：</label>
+                <input type="text" id="username" name="username" value="testuser" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">密码：</label>
+                <input type="password" id="password" name="password" value="123456" required>
+            </div>
+            
+            <div class="form-group">
+                <label>滑动验证码：</label>
+                <div class="captcha-container">
+                    <div id="captchaLoading" class="loading">正在加载验证码...</div>
+                    <div id="captchaContent" style="display: none;">
+                        <div class="captcha-images">
+                            <img id="backgroundImage" class="background-image" alt="验证码背景">
+                            <img id="sliderImage" style="position: absolute; top: 0; left: 0; width: 60px; height: 60px;" alt="滑块">
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-track" id="sliderTrack"></div>
+                            <div class="slider-button" id="sliderButton">→</div>
+                            <div class="slider-text" id="sliderText">向右滑动完成验证</div>
+                        </div>
+                    </div>
+                    <button type="button" id="refreshCaptcha" class="btn" style="margin-top: 10px;">🔄 刷新验证码</button>
+                </div>
+            </div>
+            
+            <div id="message"></div>
+            
+            <button type="submit" id="loginBtn" class="btn" disabled>登录</button>
+        </form>
+    </div>
+
+    <script>
+        let captchaData = null;
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 0;
+        let sliderVerified = false;
+
+        // 页面加载时获取验证码
+        document.addEventListener('DOMContentLoaded', function() {
+            generateCaptcha();
+            initSlider();
+        });
+
+        // 生成验证码
+        async function generateCaptcha() {
+            try {
+                showMessage('正在生成验证码...', 'info');
+                document.getElementById('captchaLoading').style.display = 'block';
+                document.getElementById('captchaContent').style.display = 'none';
+                
+                const response = await fetch('/v1/captcha/generate');
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    captchaData = result.data;
+                    document.getElementById('backgroundImage').src = captchaData.backgroundImage;
+                    document.getElementById('sliderImage').src = captchaData.sliderImage;
+                    document.getElementById('sliderImage').style.top = captchaData.sliderY + 'px';
+                    
+                    document.getElementById('captchaLoading').style.display = 'none';
+                    document.getElementById('captchaContent').style.display = 'block';
+                    
+                    resetSlider();
+                    showMessage('验证码加载成功，请滑动完成验证', 'info');
+                } else {
+                    showMessage('验证码生成失败：' + result.msg, 'error');
+                }
+            } catch (error) {
+                console.error('生成验证码失败:', error);
+                showMessage('验证码生成失败，请检查网络连接', 'error');
+            }
+        }
+
+        // 初始化滑块
+        function initSlider() {
+            const sliderButton = document.getElementById('sliderButton');
+            
+            sliderButton.addEventListener('mousedown', startDrag);
+            sliderButton.addEventListener('touchstart', startDrag);
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchmove', drag);
+            
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchend', endDrag);
+        }
+
+        // 开始拖拽
+        function startDrag(e) {
+            if (sliderVerified) return;
+            
+            isDragging = true;
+            startX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+            currentX = 0;
+            
+            document.getElementById('sliderButton').style.transition = 'none';
+            document.getElementById('sliderTrack').style.transition = 'none';
+        }
+
+        // 拖拽中
+        function drag(e) {
+            if (!isDragging || sliderVerified) return;
+            
+            e.preventDefault();
+            const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+            currentX = clientX - startX;
+            
+            const maxX = document.querySelector('.slider-container').offsetWidth - 40;
+            currentX = Math.max(0, Math.min(currentX, maxX));
+            
+            const percentage = (currentX / maxX) * 100;
+            
+            document.getElementById('sliderButton').style.left = (currentX + 2) + 'px';
+            document.getElementById('sliderTrack').style.width = percentage + '%';
+            
+            // 更新滑块图片位置
+            document.getElementById('sliderImage').style.left = currentX + 'px';
+        }
+
+        // 结束拖拽
+        function endDrag() {
+            if (!isDragging || sliderVerified) return;
+            
+            isDragging = false;
+            
+            // 验证滑动位置
+            if (captchaData && Math.abs(currentX - (captchaData.sliderX || 120)) <= 5) {
+                sliderVerified = true;
+                document.getElementById('sliderButton').innerHTML = '✓';
+                document.getElementById('sliderButton').style.background = '#4CAF50';
+                document.getElementById('sliderText').textContent = '验证成功';
+                document.getElementById('loginBtn').disabled = false;
+                showMessage('滑动验证成功！', 'success');
+            } else {
+                resetSlider();
+                showMessage('验证失败，请重试', 'error');
+            }
+        }
+
+        // 重置滑块
+        function resetSlider() {
+            sliderVerified = false;
+            currentX = 0;
+            
+            document.getElementById('sliderButton').style.left = '2px';
+            document.getElementById('sliderButton').style.transition = 'left 0.3s ease';
+            document.getElementById('sliderButton').innerHTML = '→';
+            document.getElementById('sliderButton').style.background = 'white';
+            
+            document.getElementById('sliderTrack').style.width = '0%';
+            document.getElementById('sliderTrack').style.transition = 'width 0.3s ease';
+            
+            document.getElementById('sliderText').textContent = '向右滑动完成验证';
+            document.getElementById('loginBtn').disabled = true;
+            
+            document.getElementById('sliderImage').style.left = '0px';
+        }
+
+        // 刷新验证码
+        document.getElementById('refreshCaptcha').addEventListener('click', function() {
+            generateCaptcha();
+        });
+
+        // 登录表单提交
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!sliderVerified || !captchaData) {
+                showMessage('请先完成滑动验证', 'error');
+                return;
+            }
+            
+            const formData = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                captchaId: captchaData.captchaId,
+                sliderX: currentX
+            };
+            
+            try {
+                showMessage('正在登录...', 'info');
+                document.getElementById('loginBtn').disabled = true;
+                
+                const response = await fetch('/v1/auth/captcha-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    showMessage('登录成功！SessionId: ' + result.data, 'success');
+                } else {
+                    showMessage('登录失败：' + result.msg, 'error');
+                    generateCaptcha(); // 重新生成验证码
+                }
+            } catch (error) {
+                console.error('登录失败:', error);
+                showMessage('登录失败，请检查网络连接', 'error');
+                generateCaptcha(); // 重新生成验证码
+            } finally {
+                document.getElementById('loginBtn').disabled = false;
+            }
+        });
+
+        // 显示消息
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = 'message ' + type;
+            messageDiv.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html> 
