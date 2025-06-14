@@ -3,6 +3,9 @@ package com.spark.demo.common.exception;
 import com.spark.demo.common.context.UserContext;
 import com.spark.demo.common.result.Result;
 import com.spark.demo.common.result.ResultCode;
+import com.spark.demo.modules.auth.domain.exception.AuthException;
+import com.spark.demo.modules.sms.domain.exception.SmsException;
+import com.spark.demo.modules.user.domain.exception.UserException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
@@ -49,6 +52,42 @@ public class GlobalExceptionHandler {
         String requestInfo = getRequestInfo();
         log.warn("[{}] 业务异常: {}, 请求信息: {}", errorId, e.getMessage(), requestInfo);
         return Result.fail(e.getResultCode().getCode(), e.getMessage());
+    }
+
+    /**
+     * 用户模块异常处理
+     */
+    @ExceptionHandler(UserException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result<Void> handleUserException(UserException e) {
+        String errorId = generateErrorId();
+        String requestInfo = getRequestInfo();
+        log.warn("[{}] 用户模块异常: {}, 请求信息: {}", errorId, e.getMessage(), requestInfo);
+        return Result.fail(e.getErrorCode().getCode(), e.getMessage());
+    }
+
+    /**
+     * 认证模块异常处理
+     */
+    @ExceptionHandler(AuthException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result<Void> handleAuthException(AuthException e) {
+        String errorId = generateErrorId();
+        String requestInfo = getRequestInfo();
+        log.warn("[{}] 认证模块异常: {}, 请求信息: {}", errorId, e.getMessage(), requestInfo);
+        return Result.fail(e.getErrorCode().getCode(), e.getMessage());
+    }
+
+    /**
+     * 短信模块异常处理
+     */
+    @ExceptionHandler(SmsException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result<Void> handleSmsException(SmsException e) {
+        String errorId = generateErrorId();
+        String requestInfo = getRequestInfo();
+        log.warn("[{}] 短信模块异常: {}, 请求信息: {}", errorId, e.getMessage(), requestInfo);
+        return Result.fail(e.getErrorCode().getCode(), e.getMessage());
     }
 
     /**
