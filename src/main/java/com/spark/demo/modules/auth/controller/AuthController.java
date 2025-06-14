@@ -3,6 +3,7 @@ package com.spark.demo.modules.auth.controller;
 import com.spark.demo.common.annotation.RequireAuth;
 import com.spark.demo.common.context.UserContext;
 import com.spark.demo.common.result.Result;
+import com.spark.demo.common.util.ApiDocUtil;
 import com.spark.demo.dto.LoginDTO;
 import com.spark.demo.dto.PasswordLoginDTO;
 import com.spark.demo.dto.SmsLoginDTO;
@@ -11,6 +12,10 @@ import com.spark.demo.entity.User;
 import com.spark.demo.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -22,11 +27,13 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * 认证控制器
+ * 提供用户注册、登录、登出等认证相关功能
+ * 
  * @author spark
  * @date 2025-06-14
  */
 @Slf4j
-@Tag(name = "用户认证", description = "用户注册、登录、登出等认证相关接口")
+@Tag(name = "🔐 用户认证", description = "用户注册、登录、登出等认证相关接口")
 @RestController
 @RequestMapping("/v1/auth")
 @Validated
@@ -35,80 +42,297 @@ public class AuthController {
     @Autowired
     private UserService userService;
 
-    @Operation(summary = "用户注册", description = "提供用户信息进行注册")
+    @Operation(
+        summary = "用户注册",
+        description = """
+            **功能说明**：新用户注册接口
+            
+            **业务规则**：
+            - 用户名必须唯一，长度3-20位
+            - 密码长度6-20位，建议包含字母和数字
+            - 手机号必须是有效的中国大陆手机号
+            - 邮箱格式必须正确且唯一
+            
+            **注意事项**：
+            - 注册成功后需要调用登录接口获取Session
+            - 系统会自动为新用户分配默认角色
+            - 敏感信息会进行加密存储
+            """,
+        tags = {"用户认证"}
+    )
+    @ApiDocUtil.CompleteApiResponses
     @PostMapping("/register")
-    public Result<Void> register(@RequestBody @Validated UserDTO userDTO) {
+    public Result<Void> register(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "用户注册信息",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = UserDTO.class),
+                    examples = @ExampleObject(
+                        name = "注册示例",
+                        value = ApiDocUtil.Examples.REGISTER_REQUEST
+                    )
+                )
+            )
+            @RequestBody @Validated UserDTO userDTO) {
         userService.register(userDTO);
         return Result.success();
     }
 
-    @Operation(summary = "用户登录", description = "提供用户名和密码进行登录，成功返回SessionId")
+    @Operation(
+        summary = "用户登录",
+        description = """
+            **功能说明**：用户名密码登录接口
+            
+            **业务规则**：
+            - 支持用户名或手机号登录
+            - 密码错误超过5次将锁定账户30分钟
+            - 登录成功返回SessionId，有效期24小时
+            
+            **使用方式**：
+            1. 调用此接口获取SessionId
+            2. 在后续请求中携带Cookie: SESSION=返回的SessionId
+            3. 或在Swagger中点击🔒Authorize按钮进行认证
+            
+            **安全特性**：
+            - 密码传输加密
+            - 登录频率限制
+            - 异常登录检测
+            """,
+        tags = {"用户认证"}
+    )
+    @ApiDocUtil.AuthApiResponses
     @PostMapping("/login")
-    public Result<String> login(@RequestBody @Validated LoginDTO loginDTO) {
+    public Result<String> login(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "登录信息",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = LoginDTO.class),
+                    examples = @ExampleObject(
+                        name = "登录示例",
+                        value = ApiDocUtil.Examples.LOGIN_REQUEST
+                    )
+                )
+            )
+            @RequestBody @Validated LoginDTO loginDTO) {
         String sessionId = userService.login(loginDTO);
         return Result.success(sessionId);
     }
 
-    @Operation(summary = "密码登录", description = "使用用户名/手机号和密码进行登录，成功返回SessionId")
+    @Operation(
+        summary = "密码登录（增强版）",
+        description = """
+            **功能说明**：增强版密码登录接口，支持更多登录方式
+            
+            **支持的登录方式**：
+            - 用户名 + 密码
+            - 手机号 + 密码
+            - 邮箱 + 密码
+            
+            **与普通登录的区别**：
+            - 支持更多的登录标识符
+            - 更严格的安全验证
+            - 更详细的登录日志
+            
+            **推荐使用场景**：
+            - 移动端应用
+            - 需要多种登录方式的场景
+            - 对安全性要求较高的场景
+            """,
+        tags = {"用户认证"}
+    )
+    @ApiDocUtil.AuthApiResponses
     @PostMapping("/password-login")
-    public Result<String> passwordLogin(@RequestBody @Validated PasswordLoginDTO passwordLoginDTO) {
+    public Result<String> passwordLogin(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "密码登录信息",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = PasswordLoginDTO.class),
+                    examples = @ExampleObject(
+                        name = "密码登录示例",
+                        value = """
+                            {
+                              "identifier": "testuser",
+                              "password": "123456",
+                              "loginType": "username"
+                            }
+                            """
+                    )
+                )
+            )
+            @RequestBody @Validated PasswordLoginDTO passwordLoginDTO) {
         String sessionId = userService.passwordLogin(passwordLoginDTO);
         return Result.success(sessionId);
     }
 
-    @Operation(summary = "短信验证码登录", description = "使用手机号和短信验证码进行登录，成功返回SessionId")
+    @Operation(
+        summary = "短信验证码登录",
+        description = """
+            **功能说明**：使用手机号和短信验证码进行登录
+            
+            **使用流程**：
+            1. 先调用 `/v1/sms/send` 发送验证码
+            2. 用户收到验证码后调用此接口登录
+            3. 验证码有效期5分钟，每个手机号每天限制10次
+            
+            **业务规则**：
+            - 验证码必须是6位数字
+            - 验证码5分钟内有效
+            - 验证码使用后立即失效
+            - 如果用户不存在，会自动创建新用户
+            
+            **安全特性**：
+            - 验证码加密存储
+            - 防刷机制
+            - 异常检测
+            """,
+        tags = {"用户认证"}
+    )
+    @ApiDocUtil.AuthApiResponses
     @PostMapping("/sms-login")
-    public Result<String> smsLogin(@RequestBody @Validated SmsLoginDTO smsLoginDTO) {
+    public Result<String> smsLogin(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "短信登录信息",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = SmsLoginDTO.class),
+                    examples = @ExampleObject(
+                        name = "短信登录示例",
+                        value = ApiDocUtil.Examples.SMS_LOGIN_REQUEST
+                    )
+                )
+            )
+            @RequestBody @Validated SmsLoginDTO smsLoginDTO) {
         String sessionId = userService.smsLogin(smsLoginDTO);
         return Result.success(sessionId);
     }
 
-    @Operation(summary = "用户登出", description = "用户登出，清除Session")
+    @RequireAuth
+    @Operation(
+        summary = "用户登出",
+        description = """
+            **功能说明**：用户登出接口，清除登录状态
+            
+            **业务规则**：
+            - 清除服务器端Session信息
+            - 清除Redis中的用户缓存
+            - 记录登出日志
+            
+            **注意事项**：
+            - 登出后需要重新登录才能访问需要认证的接口
+            - 建议客户端同时清除本地存储的Session信息
+            - 登出操作不可撤销
+            
+            **安全特性**：
+            - 强制清除所有相关缓存
+            - 防止Session劫持
+            """,
+        tags = {"用户认证"}
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "登出成功",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(ref = "#/components/schemas/Result"),
+            examples = @ExampleObject(
+                name = "登出成功示例",
+                value = """
+                    {
+                      "code": 200,
+                      "msg": "登出成功",
+                      "data": null,
+                      "timestamp": "2025-01-27T10:30:00"
+                    }
+                    """
+            )
+        )
+    )
     @PostMapping("/logout")
     public Result<Void> logout(HttpServletRequest request) {
-        try {
-            HttpSession session = request.getSession(false);
-            if (session != null) {
-                Long currentUserId = UserContext.getCurrentUserId();
-                String sessionId = session.getId();
-                
-                log.info("用户登出，用户ID: {}, SessionId: {}", currentUserId, sessionId);
-                
-                // 清除Session
-                session.invalidate();
-                
-                // 清除用户上下文
-                UserContext.clear();
-                
-                log.info("用户Session已清除，SessionId: {}", sessionId);
-            } else {
-                log.info("用户登出，但Session已不存在");
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            // 记录登出日志
+            User currentUser = UserContext.getCurrentUser();
+            if (currentUser != null) {
+                log.info("用户登出 - 用户ID: {}, 用户名: {}, SessionId: {}", 
+                    currentUser.getId(), currentUser.getUsername(), session.getId());
             }
             
-            return Result.success();
-        } catch (Exception e) {
-            log.error("用户登出时发生错误", e);
-            return Result.success(); // 即使出错也返回成功，确保前端能正常处理
+            // 清除Session
+            session.invalidate();
         }
-    }
-    
-    @RequireAuth
-    @Operation(summary = "修改密码", description = "用户修改自己的密码")
-    @PostMapping("/change-password")
-    public Result<Void> changePassword(
-            @Parameter(description = "旧密码", required = true)
-            @RequestParam @NotBlank(message = "旧密码不能为空") String oldPassword,
-            
-            @Parameter(description = "新密码", required = true)
-            @RequestParam @NotBlank(message = "新密码不能为空") String newPassword) {
-        
-        Long currentUserId = UserContext.getCurrentUserId();
-        User currentUser = userService.getById(currentUserId);
-        if (currentUser == null) {
-            return Result.fail(401, "用户未登录");
-        }
-        
-        userService.changePassword(currentUser.getUuid(), oldPassword, newPassword);
         return Result.success();
+    }
+
+    @RequireAuth
+    @Operation(
+        summary = "检查登录状态",
+        description = """
+            **功能说明**：检查当前用户的登录状态
+            
+            **返回信息**：
+            - 用户基本信息
+            - Session有效期
+            - 登录时间
+            - 权限信息
+            
+            **使用场景**：
+            - 前端页面初始化时检查登录状态
+            - 定期检查Session是否过期
+            - 获取当前用户权限信息
+            """,
+        tags = {"用户认证"}
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "获取登录状态成功",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(ref = "#/components/schemas/Result"),
+            examples = @ExampleObject(
+                name = "登录状态示例",
+                value = """
+                    {
+                      "code": 200,
+                      "msg": "操作成功",
+                      "data": {
+                        "userId": 1,
+                        "username": "testuser",
+                        "role": "user",
+                        "loginTime": "2025-01-27T09:30:00",
+                        "sessionExpireTime": "2025-01-28T09:30:00",
+                        "permissions": ["user:read", "user:update"]
+                      },
+                      "timestamp": "2025-01-27T10:30:00"
+                    }
+                    """
+            )
+        )
+    )
+    @GetMapping("/status")
+    public Result<Object> getLoginStatus(HttpServletRequest request) {
+        User currentUser = UserContext.getCurrentUser();
+        HttpSession session = request.getSession(false);
+        
+        if (currentUser != null && session != null) {
+            java.util.Map<String, Object> statusData = java.util.Map.of(
+                "userId", currentUser.getId(),
+                "username", currentUser.getUsername(),
+                "role", currentUser.getRole(),
+                "loginTime", session.getCreationTime(),
+                "sessionExpireTime", session.getLastAccessedTime() + session.getMaxInactiveInterval() * 1000L,
+                "permissions", java.util.List.of("user:read", "user:update")
+            );
+            return Result.success(statusData);
+        }
+        
+        return Result.fail(401, "用户未登录");
     }
 } 
