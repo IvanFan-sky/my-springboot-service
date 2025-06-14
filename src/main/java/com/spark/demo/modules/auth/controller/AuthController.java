@@ -9,6 +9,7 @@ import com.spark.demo.dto.PasswordLoginDTO;
 import com.spark.demo.dto.SmsLoginDTO;
 import com.spark.demo.dto.UserDTO;
 import com.spark.demo.entity.User;
+import com.spark.demo.modules.auth.service.AuthService;
 import com.spark.demo.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -21,6 +22,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +44,9 @@ public class AuthController {
 
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private AuthService authService;
 
     @Operation(
         summary = "用户注册",
@@ -334,5 +340,146 @@ public class AuthController {
         }
         
         return Result.fail(401, "用户未登录");
+    }
+
+    // ==================== JWT认证接口 ====================
+
+    @Operation(
+        summary = "JWT密码登录",
+        description = """
+            **功能说明**：使用Spring Security的JWT密码登录接口
+            
+            **与传统登录的区别**：
+            - 返回JWT token而不是Session
+            - 支持无状态认证
+            - 更适合前后端分离和移动端
+            
+            **返回内容**：
+            - accessToken: 访问令牌（24小时有效）
+            - refreshToken: 刷新令牌（7天有效）
+            - tokenType: Bearer
+            - expiresIn: 过期时间（秒）
+            - user: 用户基本信息
+            
+            **使用方式**：
+            在请求头中携带：Authorization: Bearer {accessToken}
+            """,
+        tags = {"JWT认证"}
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "JWT登录成功",
+        content = @Content(
+            mediaType = "application/json",
+            examples = @ExampleObject(
+                name = "JWT登录成功示例",
+                value = """
+                    {
+                      "code": 200,
+                      "msg": "登录成功",
+                      "data": {
+                        "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                        "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                        "tokenType": "Bearer",
+                        "expiresIn": 86400,
+                        "user": {
+                          "id": 1,
+                          "uuid": "550e8400-e29b-41d4-a716-446655440000",
+                          "username": "testuser",
+                          "phone": "138****5678",
+                          "email": "te***@example.com",
+                          "role": "user",
+                          "status": 1
+                        }
+                      }
+                    }
+                    """
+            )
+        )
+    )
+    @PostMapping("/jwt/password-login")
+    public Result<Map<String, Object>> jwtPasswordLogin(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "JWT密码登录信息",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = PasswordLoginDTO.class),
+                    examples = @ExampleObject(
+                        name = "JWT密码登录示例",
+                        value = """
+                            {
+                              "username": "testuser",
+                              "password": "123456"
+                            }
+                            """
+                    )
+                )
+            )
+            @RequestBody @Validated PasswordLoginDTO passwordLoginDTO) {
+        Map<String, Object> tokenData = authService.passwordLogin(passwordLoginDTO);
+        return Result.success(tokenData);
+    }
+
+    @Operation(
+        summary = "JWT短信登录",
+        description = """
+            **功能说明**：使用短信验证码进行JWT登录
+            
+            **流程说明**：
+            1. 先调用短信发送接口获取验证码
+            2. 使用手机号和验证码进行登录
+            3. 返回JWT token
+            
+            **返回内容**：与JWT密码登录相同
+            """,
+        tags = {"JWT认证"}
+    )
+    @PostMapping("/jwt/sms-login")
+    public Result<Map<String, Object>> jwtSmsLogin(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "JWT短信登录信息",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = SmsLoginDTO.class),
+                    examples = @ExampleObject(
+                        name = "JWT短信登录示例",
+                        value = """
+                            {
+                              "phone": "13812345678",
+                              "code": "123456"
+                            }
+                            """
+                    )
+                )
+            )
+            @RequestBody @Validated SmsLoginDTO smsLoginDTO) {
+        Map<String, Object> tokenData = authService.smsLogin(smsLoginDTO);
+        return Result.success(tokenData);
+    }
+
+    @Operation(
+        summary = "刷新JWT Token",
+        description = """
+            **功能说明**：使用刷新令牌获取新的访问令牌
+            
+            **使用场景**：
+            - 访问令牌即将过期时
+            - 访问令牌已过期但刷新令牌仍有效时
+            
+            **注意事项**：
+            - 刷新令牌有效期为7天
+            - 每次刷新都会返回新的访问令牌和刷新令牌
+            - 旧的刷新令牌将失效
+            """,
+        tags = {"JWT认证"}
+    )
+    @PostMapping("/jwt/refresh")
+    public Result<Map<String, Object>> refreshToken(
+            @Parameter(description = "刷新令牌", required = true)
+            @RequestParam String refreshToken) {
+        Map<String, Object> tokenData = authService.refreshToken(refreshToken);
+        return Result.success(tokenData);
     }
 } 
