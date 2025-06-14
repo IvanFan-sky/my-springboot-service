@@ -12,6 +12,7 @@ public enum ResultCode {
     FORBIDDEN(403, "禁止访问"),
     NOT_FOUND(404, "资源不存在"),
     PARAM_ERROR(400, "参数错误"),
+    TOO_MANY_REQUESTS(429, "请求过于频繁"),
     BUSINESS_ERROR(600, "业务异常");
 
     private final int code;

@@ -109,9 +109,9 @@ management:
       enabled: true
     diskspace:
       enabled: true
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
     distribution:
       percentiles-histogram:
@@ -128,3 +128,25 @@ app:
   version: 1.0.0
   description: 基于SpringBoot3的通用后台服务
   author: spark
+  
+  # JWT配置
+  jwt:
+    secret: ${JWT_SECRET:mySecretKeyForJWTTokenGenerationThatShouldBeLongEnoughForHS256Algorithm}
+    expiration: ${JWT_EXPIRATION:24} # 访问token过期时间（小时）
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:7} # 刷新token过期时间（天）
+    
+  # 安全配置
+  security:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+      allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+      allowed-headers: ${CORS_ALLOWED_HEADERS:*}
+      allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
+      max-age: ${CORS_MAX_AGE:3600}
+    
+    # 限流配置
+    rate-limit:
+      enabled: ${RATE_LIMIT_ENABLED:true}
+      default-limit: ${RATE_LIMIT_DEFAULT:100} # 默认每分钟限制次数
+      login-limit: ${RATE_LIMIT_LOGIN:5} # 登录接口每分钟限制次数
+      sms-limit: ${RATE_LIMIT_SMS:1} # 短信接口每分钟限制次数
