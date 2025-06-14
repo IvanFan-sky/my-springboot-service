@@ -23,10 +23,13 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl # 测试时不输出SQL日志
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto
+      logic-delete-field: deletedTime
+      logic-delete-value: 'NOW()'
+      logic-not-delete-value: 'NULL'
     banner: false
 
 # 关闭Knife4j（测试环境不需要）
@@ -39,5 +42,34 @@ logging:
   level:
     com.spark.demo: DEBUG
     root: WARN
+    org.springframework.cache: DEBUG
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" 
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# RBAC配置
+rbac:
+  cache:
+    enabled: true
+    ttl: 300 # 5分钟
+  permission:
+    check-enabled: true
+    super-admin-role: super_admin
+
+# H2数据库控制台
+h2:
+  console:
+    enabled: true
+    path: /h2-console
+
+# JPA配置
+jpa:
+  hibernate:
+    ddl-auto: create-drop
+  show-sql: true
+  properties:
+    hibernate:
+      format_sql: true
+
+# 缓存配置
+cache:
+  type: simple 
