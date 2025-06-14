@@ -17,7 +17,15 @@ import com.spark.demo.dto.PasswordLoginDTO;
 import com.spark.demo.dto.SmsLoginDTO;
 import com.spark.demo.dto.UserDTO;
 import com.spark.demo.entity.User;
+import com.spark.demo.entity.Role;
+import com.spark.demo.entity.Permission;
+import com.spark.demo.entity.Menu;
+import com.spark.demo.entity.UserRole;
 import com.spark.demo.mapper.UserMapper;
+import com.spark.demo.modules.rbac.service.RoleService;
+import com.spark.demo.modules.rbac.service.PermissionService;
+import com.spark.demo.modules.rbac.service.MenuService;
+import com.spark.demo.modules.rbac.mapper.UserRoleMapper;
 import com.spark.demo.service.SmsService;
 import com.spark.demo.service.UserService;
 import com.spark.demo.vo.UserVO;
@@ -35,7 +43,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -53,6 +64,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
     
     @Autowired
     private SmsService smsService;
+
+    @Autowired
+    private RoleService roleService;
+
+    @Autowired
+    private PermissionService permissionService;
+
+    @Autowired
+    private MenuService menuService;
+
+    @Autowired
+    private UserRoleMapper userRoleMapper;
 
     private final UserConverter userConverter = UserConverter.INSTANCE;
     
@@ -843,5 +866,279 @@ public class UserServiceImpl extends ServiceImpl<UserMapper,User> implements Use
             return session.getId();
         }
         throw new BusinessException(ResultCode.FAIL, "登录失败");
+    }
+
+    // ==================== RBAC 相关方法实现 ====================
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean assignRolesToUser(Long userId, List<Long> roleIds) {
+        log.info("为用户分配角色, userId: {}, roleIds: {}", userId, roleIds);
+        
+        try {
+            if (userId == null || roleIds == null || roleIds.isEmpty()) {
+                return false;
+            }
+            
+            // 检查用户是否存在
+            User user = userMapper.selectById(userId);
+            if (user == null || user.getDeletedTime() != null) {
+                log.warn("用户不存在, userId: {}", userId);
+                return false;
+            }
+            
+            // 先删除用户现有角色
+            LambdaQueryWrapper<UserRole> deleteWrapper = new LambdaQueryWrapper<>();
+            deleteWrapper.eq(UserRole::getUserId, userId);
+            userRoleMapper.delete(deleteWrapper);
+            
+            // 添加新角色
+            for (Long roleId : roleIds) {
+                UserRole userRole = new UserRole();
+                userRole.setUserId(userId);
+                userRole.setRoleId(roleId);
+                userRole.setCreatedTime(new Date());
+                userRoleMapper.insert(userRole);
+            }
+            
+            log.info("用户角色分配成功, userId: {}, roleIds: {}", userId, roleIds);
+            return true;
+        } catch (Exception e) {
+            log.error("为用户分配角色失败, userId: {}, roleIds: {}", userId, roleIds, e);
+            throw new RuntimeException("分配角色失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeRolesFromUser(Long userId, List<Long> roleIds) {
+        log.info("移除用户角色, userId: {}, roleIds: {}", userId, roleIds);
+        
+        try {
+            if (userId == null || roleIds == null || roleIds.isEmpty()) {
+                return false;
+            }
+            
+            LambdaQueryWrapper<UserRole> deleteWrapper = new LambdaQueryWrapper<>();
+            deleteWrapper.eq(UserRole::getUserId, userId)
+                        .in(UserRole::getRoleId, roleIds);
+            
+            int deletedCount = userRoleMapper.delete(deleteWrapper);
+            log.info("用户角色移除成功, userId: {}, 移除数量: {}", userId, deletedCount);
+            return deletedCount > 0;
+        } catch (Exception e) {
+            log.error("移除用户角色失败, userId: {}, roleIds: {}", userId, roleIds, e);
+            throw new RuntimeException("移除角色失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<Role> getUserRoles(Long userId) {
+        log.debug("获取用户角色列表, userId: {}", userId);
+        
+        if (userId == null) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            return roleService.getRolesByUserId(userId);
+        } catch (Exception e) {
+            log.error("获取用户角色列表失败, userId: {}", userId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<Permission> getUserPermissions(Long userId) {
+        log.debug("获取用户权限列表, userId: {}", userId);
+        
+        if (userId == null) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            return permissionService.getPermissionsByUserId(userId);
+        } catch (Exception e) {
+            log.error("获取用户权限列表失败, userId: {}", userId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<Menu> getUserMenus(Long userId) {
+        log.debug("获取用户菜单列表, userId: {}", userId);
+        
+        if (userId == null) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            return menuService.getMenusByUserId(userId);
+        } catch (Exception e) {
+            log.error("获取用户菜单列表失败, userId: {}", userId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<Menu> getUserMenuTree(Long userId) {
+        log.debug("获取用户菜单树, userId: {}", userId);
+        
+        if (userId == null) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            return menuService.getUserMenuTree(userId);
+        } catch (Exception e) {
+            log.error("获取用户菜单树失败, userId: {}", userId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public boolean hasPermission(Long userId, String permissionCode) {
+        log.debug("检查用户权限, userId: {}, permissionCode: {}", userId, permissionCode);
+        
+        if (userId == null || !StringUtils.hasText(permissionCode)) {
+            return false;
+        }
+        
+        try {
+            return permissionService.hasPermission(userId, permissionCode);
+        } catch (Exception e) {
+            log.error("检查用户权限失败, userId: {}, permissionCode: {}", userId, permissionCode, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean hasPathPermission(Long userId, String path, String method) {
+        log.debug("检查用户路径权限, userId: {}, path: {}, method: {}", userId, path, method);
+        
+        if (userId == null || !StringUtils.hasText(path)) {
+            return false;
+        }
+        
+        try {
+            return permissionService.hasPathPermission(userId, path, method);
+        } catch (Exception e) {
+            log.error("检查用户路径权限失败, userId: {}, path: {}, method: {}", userId, path, method, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean hasMenuAccess(Long userId, String menuCode) {
+        log.debug("检查用户菜单访问权限, userId: {}, menuCode: {}", userId, menuCode);
+        
+        if (userId == null || !StringUtils.hasText(menuCode)) {
+            return false;
+        }
+        
+        try {
+            return menuService.hasMenuAccess(userId, menuCode);
+        } catch (Exception e) {
+            log.error("检查用户菜单访问权限失败, userId: {}, menuCode: {}", userId, menuCode, e);
+            return false;
+        }
+    }
+
+    @Override
+    public List<Role> getUserRolesByUuid(String uuid) {
+        log.debug("根据UUID获取用户角色列表, uuid: {}", uuid);
+        
+        if (!StringUtils.hasText(uuid)) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            User user = findByUuid(uuid);
+            if (user == null) {
+                return new ArrayList<>();
+            }
+            return getUserRoles(user.getId());
+        } catch (Exception e) {
+            log.error("根据UUID获取用户角色列表失败, uuid: {}", uuid, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<Permission> getUserPermissionsByUuid(String uuid) {
+        log.debug("根据UUID获取用户权限列表, uuid: {}", uuid);
+        
+        if (!StringUtils.hasText(uuid)) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            User user = findByUuid(uuid);
+            if (user == null) {
+                return new ArrayList<>();
+            }
+            return getUserPermissions(user.getId());
+        } catch (Exception e) {
+            log.error("根据UUID获取用户权限列表失败, uuid: {}", uuid, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public List<Menu> getUserMenuTreeByUuid(String uuid) {
+        log.debug("根据UUID获取用户菜单树, uuid: {}", uuid);
+        
+        if (!StringUtils.hasText(uuid)) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            User user = findByUuid(uuid);
+            if (user == null) {
+                return new ArrayList<>();
+            }
+            return getUserMenuTree(user.getId());
+        } catch (Exception e) {
+            log.error("根据UUID获取用户菜单树失败, uuid: {}", uuid, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean assignRolesToUserByUuid(String uuid, List<Long> roleIds) {
+        log.info("根据UUID为用户分配角色, uuid: {}, roleIds: {}", uuid, roleIds);
+        
+        if (!StringUtils.hasText(uuid)) {
+            return false;
+        }
+        
+        try {
+            User user = findByUuid(uuid);
+            if (user == null) {
+                log.warn("用户不存在, uuid: {}", uuid);
+                return false;
+            }
+            return assignRolesToUser(user.getId(), roleIds);
+        } catch (Exception e) {
+            log.error("根据UUID为用户分配角色失败, uuid: {}, roleIds: {}", uuid, roleIds, e);
+            throw new RuntimeException("分配角色失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<String> getUserAccessibleMenuPaths(Long userId) {
+        log.debug("获取用户可访问菜单路径列表, userId: {}", userId);
+        
+        if (userId == null) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            return menuService.getUserAccessibleMenuPaths(userId);
+        } catch (Exception e) {
+            log.error("获取用户可访问菜单路径列表失败, userId: {}", userId, e);
+            return new ArrayList<>();
+        }
     }
 }

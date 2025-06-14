@@ -7,7 +7,12 @@ import com.spark.demo.dto.PasswordLoginDTO;
 import com.spark.demo.dto.SmsLoginDTO;
 import com.spark.demo.dto.UserDTO;
 import com.spark.demo.entity.User;
+import com.spark.demo.entity.Role;
+import com.spark.demo.entity.Permission;
+import com.spark.demo.entity.Menu;
 import com.spark.demo.vo.UserVO;
+
+import java.util.List;
 
 /**
  * 用户服务接口
@@ -129,4 +134,111 @@ public interface UserService extends IService<User> {
      * @return 更新后的用户信息
      */
     UserVO updateUserStatus(String uuid, Integer status);
+
+    // ==================== RBAC 相关方法 ====================
+
+    /**
+     * 为用户分配角色
+     * @param userId 用户ID
+     * @param roleIds 角色ID列表
+     * @return 是否成功
+     */
+    boolean assignRolesToUser(Long userId, List<Long> roleIds);
+
+    /**
+     * 移除用户角色
+     * @param userId 用户ID
+     * @param roleIds 角色ID列表
+     * @return 是否成功
+     */
+    boolean removeRolesFromUser(Long userId, List<Long> roleIds);
+
+    /**
+     * 获取用户角色列表
+     * @param userId 用户ID
+     * @return 角色列表
+     */
+    List<Role> getUserRoles(Long userId);
+
+    /**
+     * 获取用户权限列表
+     * @param userId 用户ID
+     * @return 权限列表
+     */
+    List<Permission> getUserPermissions(Long userId);
+
+    /**
+     * 获取用户菜单列表
+     * @param userId 用户ID
+     * @return 菜单列表
+     */
+    List<Menu> getUserMenus(Long userId);
+
+    /**
+     * 获取用户菜单树
+     * @param userId 用户ID
+     * @return 菜单树
+     */
+    List<Menu> getUserMenuTree(Long userId);
+
+    /**
+     * 检查用户是否拥有指定权限
+     * @param userId 用户ID
+     * @param permissionCode 权限编码
+     * @return 是否拥有权限
+     */
+    boolean hasPermission(Long userId, String permissionCode);
+
+    /**
+     * 检查用户是否拥有指定路径权限
+     * @param userId 用户ID
+     * @param path 路径
+     * @param method HTTP方法
+     * @return 是否拥有权限
+     */
+    boolean hasPathPermission(Long userId, String path, String method);
+
+    /**
+     * 检查用户是否有菜单访问权限
+     * @param userId 用户ID
+     * @param menuCode 菜单编码
+     * @return 是否有访问权限
+     */
+    boolean hasMenuAccess(Long userId, String menuCode);
+
+    /**
+     * 根据UUID获取用户角色列表
+     * @param uuid 用户UUID
+     * @return 角色列表
+     */
+    List<Role> getUserRolesByUuid(String uuid);
+
+    /**
+     * 根据UUID获取用户权限列表
+     * @param uuid 用户UUID
+     * @return 权限列表
+     */
+    List<Permission> getUserPermissionsByUuid(String uuid);
+
+    /**
+     * 根据UUID获取用户菜单树
+     * @param uuid 用户UUID
+     * @return 菜单树
+     */
+    List<Menu> getUserMenuTreeByUuid(String uuid);
+
+    /**
+     * 根据UUID为用户分配角色
+     * @param uuid 用户UUID
+     * @param roleIds 角色ID列表
+     * @return 是否成功
+     */
+    boolean assignRolesToUserByUuid(String uuid, List<Long> roleIds);
+
+    /**
+     * 获取用户可访问的菜单路径列表
+     * @param userId 用户ID
+     * @return 路径列表
+     */
+    List<String> getUserAccessibleMenuPaths(Long userId);
 }
