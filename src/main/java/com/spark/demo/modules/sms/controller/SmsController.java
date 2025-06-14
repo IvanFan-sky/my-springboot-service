@@ -1,4 +1,4 @@
-package com.spark.demo.controller;
+package com.spark.demo.modules.sms.controller;
 
 import com.spark.demo.common.result.Result;
 import com.spark.demo.service.SmsService;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 短信验证码控制器
  * @author spark
- * @date 2025-05-29
+ * @date 2025-06-14
  */
 @Slf4j
 @Tag(name = "短信验证码", description = "短信验证码发送和验证接口")
