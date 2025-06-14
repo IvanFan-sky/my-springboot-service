@@ -1,266 +1,152 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration scan="true" scanPeriod="10 seconds">
+<configuration>
+    <!-- 引入Spring Boot默认配置 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     
-    <!-- 定义日志文件的存储地址 -->
-    <property name="LOG_HOME" value="${LOG_HOME:-logs}" />
-    <property name="APP_NAME" value="${APP_NAME:-spark-demo}" />
-    <property name="LOG_LEVEL" value="${LOG_LEVEL:-INFO}" />
-    <property name="LOG_MAX_FILE_SIZE" value="${LOG_MAX_FILE_SIZE:-10MB}" />
-    <property name="LOG_MAX_HISTORY" value="${LOG_MAX_HISTORY:-30}" />
-    <property name="LOG_TOTAL_SIZE_CAP" value="${LOG_TOTAL_SIZE_CAP:-1GB}" />
+    <!-- 定义日志文件路径 -->
+    <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
+    <property name="APP_NAME" value="${spring.application.name:-demo}"/>
     
-    <!-- 彩色日志依赖的渲染类 -->
-    <conversionRule conversionWord="clr" converterClass="org.springframework.boot.logging.logback.ColorConverter" />
-    <conversionRule conversionWord="wex" converterClass="org.springframework.boot.logging.logback.WhitespaceThrowableProxyConverter" />
-    <conversionRule conversionWord="wEx" converterClass="org.springframework.boot.logging.logback.ExtendedWhitespaceThrowableProxyConverter" />
-
-    <!-- 控制台彩色日志输出 -->
+    <!-- 控制台输出 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>DEBUG</level>
-        </filter>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %clr(%-5level){ERROR=red,WARN=yellow,INFO=green,DEBUG=blue} [%thread] %clr(%logger{36}){cyan} : %msg%n</pattern>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}</pattern>
             <charset>UTF-8</charset>
         </encoder>
     </appender>
 
-    <!-- 文件日志输出 -->
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/application.log</file>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} [%X{traceId:-}] [%X{userId:-}] : %msg%n</pattern>
+    <!-- 应用日志文件 -->
+    <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${APP_NAME}.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
-        <!-- 滚动策略 -->
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <!-- 按天滚动 -->
-            <fileNamePattern>${LOG_HOME}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <!-- 单个文件最大大小 -->
-            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
-            <!-- 保留历史日志天数 -->
-            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
-            <!-- 总日志文件大小限制 -->
-            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- 错误日志单独输出 -->
+    <!-- 错误日志文件 -->
     <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/error.log</file>
+        <file>${LOG_PATH}/${APP_NAME}-error.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>ERROR</level>
             <onMatch>ACCEPT</onMatch>
             <onMismatch>DENY</onMismatch>
         </filter>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} [%X{traceId:-}] [%X{userId:-}] [%X{errorId:-}] : %msg%n%wEx</pattern>
-            <charset>UTF-8</charset>
-        </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
-            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
-            <totalSizeCap>500MB</totalSizeCap>
-        </rollingPolicy>
     </appender>
 
-    <!-- 业务日志单独输出 -->
+    <!-- 业务日志文件 -->
     <appender name="BUSINESS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/business.log</file>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} [%X{traceId:-}] [%X{userId:-}] : %msg%n</pattern>
+        <file>${LOG_PATH}/${APP_NAME}-business.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/business.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
-            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
-            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
-        </rollingPolicy>
-    </appender>
-
-    <!-- 安全日志单独输出 -->
-    <appender name="SECURITY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/security.log</file>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} [%X{traceId:-}] [%X{userId:-}] [%X{ip:-}] : %msg%n</pattern>
-            <charset>UTF-8</charset>
-        </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/security.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
-            <maxHistory>90</maxHistory>
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}-business.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
             <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- 性能监控日志 -->
-    <appender name="PERFORMANCE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/performance.log</file>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} [%X{traceId:-}] : %msg%n</pattern>
+    <!-- 访问日志文件 -->
+    <appender name="ACCESS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${APP_NAME}-access.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} - %msg%n</pattern>
             <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/performance.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
-            <maxHistory>7</maxHistory>
-            <totalSizeCap>500MB</totalSizeCap>
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}-access.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- 异步日志配置 -->
-    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <!-- 异步日志 -->
+    <appender name="ASYNC_APP" class="ch.qos.logback.classic.AsyncAppender">
         <discardingThreshold>0</discardingThreshold>
-        <queueSize>2048</queueSize>
-        <includeCallerData>false</includeCallerData>
-        <neverBlock>true</neverBlock>
-        <appender-ref ref="FILE"/>
+        <queueSize>1024</queueSize>
+        <includeCallerData>true</includeCallerData>
+        <appender-ref ref="APP_FILE"/>
     </appender>
 
-    <appender name="ASYNC_ERROR_FILE" class="ch.qos.logback.classic.AsyncAppender">
+    <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
         <discardingThreshold>0</discardingThreshold>
-        <queueSize>512</queueSize>
+        <queueSize>256</queueSize>
         <includeCallerData>true</includeCallerData>
-        <neverBlock>false</neverBlock>
         <appender-ref ref="ERROR_FILE"/>
     </appender>
 
-    <appender name="ASYNC_SECURITY_FILE" class="ch.qos.logback.classic.AsyncAppender">
-        <discardingThreshold>0</discardingThreshold>
-        <queueSize>512</queueSize>
-        <includeCallerData>true</includeCallerData>
-        <neverBlock>false</neverBlock>
-        <appender-ref ref="SECURITY_FILE"/>
-    </appender>
+    <!-- 业务日志Logger -->
+    <logger name="BUSINESS" level="INFO" additivity="false">
+        <appender-ref ref="BUSINESS_FILE"/>
+    </logger>
 
-    <appender name="ASYNC_PERFORMANCE_FILE" class="ch.qos.logback.classic.AsyncAppender">
-        <discardingThreshold>20</discardingThreshold>
-        <queueSize>256</queueSize>
-        <includeCallerData>false</includeCallerData>
-        <neverBlock>true</neverBlock>
-        <appender-ref ref="PERFORMANCE_FILE"/>
-    </appender>
+    <!-- 访问日志Logger -->
+    <logger name="ACCESS" level="INFO" additivity="false">
+        <appender-ref ref="ACCESS_FILE"/>
+    </logger>
+
+    <!-- 第三方库日志级别 -->
+    <logger name="org.springframework" level="INFO"/>
+    <logger name="org.apache.ibatis" level="INFO"/>
+    <logger name="com.baomidou.mybatisplus" level="INFO"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.springframework.security" level="INFO"/>
+    <logger name="io.lettuce" level="WARN"/>
+    <logger name="io.netty" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="INFO"/>
 
     <!-- 开发环境配置 -->
-    <springProfile name="!prod">
-        <!-- 开发环境日志级别 -->
-        <logger name="com.spark.demo" level="DEBUG" additivity="false">
+    <springProfile name="dev">
+        <root level="DEBUG">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="BUSINESS_FILE"/>
-        </logger>
-        
-        <!-- 切面日志 -->
-        <logger name="com.spark.demo.aspect" level="INFO" additivity="false">
+            <appender-ref ref="ASYNC_APP"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+    </springProfile>
+
+    <!-- 测试环境配置 -->
+    <springProfile name="test">
+        <root level="INFO">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="BUSINESS_FILE"/>
-        </logger>
-        
-        <!-- 过滤器日志 -->
-        <logger name="com.spark.demo.filter" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="BUSINESS_FILE"/>
-        </logger>
-        
-        <!-- 安全相关日志 -->
-        <logger name="com.spark.demo.filter.AuthFilter" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="ASYNC_SECURITY_FILE"/>
-        </logger>
-        
-        <logger name="com.spark.demo.aspect.AuthAspect" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="ASYNC_SECURITY_FILE"/>
-        </logger>
-        
-        <logger name="com.spark.demo.aspect.RateLimitAspect" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="ASYNC_SECURITY_FILE"/>
-        </logger>
-        
-        <!-- 性能监控日志 -->
-        <logger name="com.spark.demo.aspect.LogAspect" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="ASYNC_PERFORMANCE_FILE"/>
-        </logger>
-        
-        <!-- Session日志 - 减少不必要的DEBUG信息 -->
-        <logger name="org.springframework.session" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
-        </logger>
-        
-        <!-- 特别关闭Session创建的DEBUG堆栈跟踪 -->
-        <logger name="org.springframework.session.web.http.SessionRepositoryFilter.SESSION_LOGGER" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
-        </logger>
-        
-        <!-- Redis日志 - 只显示重要信息 -->
-        <logger name="org.springframework.data.redis" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
-        </logger>
-        
-        <!-- Redis连接相关 -->
-        <logger name="io.lettuce.core" level="WARN" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
-        </logger>
-        
-        <!-- SQL日志 -->
-        <logger name="com.baomidou.mybatisplus" level="INFO" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
-        </logger>
-        
-        <logger name="java.sql" level="DEBUG" additivity="false">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
-        </logger>
-        
-        <!-- 根日志级别 -->
-        <root level="${LOG_LEVEL}">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="ASYNC_FILE"/>
-            <appender-ref ref="ASYNC_ERROR_FILE"/>
+            <appender-ref ref="ASYNC_APP"/>
+            <appender-ref ref="ASYNC_ERROR"/>
         </root>
     </springProfile>
 
     <!-- 生产环境配置 -->
     <springProfile name="prod">
-        <!-- 生产环境日志级别 -->
-        <logger name="com.spark.demo" level="INFO" additivity="false">
-            <appender-ref ref="BUSINESS_FILE"/>
-        </logger>
-        
-        <!-- 切面日志 -->
-        <logger name="com.spark.demo.aspect" level="INFO" additivity="false">
-            <appender-ref ref="BUSINESS_FILE"/>
-        </logger>
-        
-        <!-- 过滤器日志 -->
-        <logger name="com.spark.demo.filter" level="WARN" additivity="false">
-            <appender-ref ref="BUSINESS_FILE"/>
-        </logger>
-        
-        <!-- 框架日志 -->
-        <logger name="org.springframework" level="WARN" additivity="false">
-            <appender-ref ref="FILE"/>
-        </logger>
-        
-        <logger name="com.baomidou.mybatisplus" level="WARN" additivity="false">
-            <appender-ref ref="FILE"/>
-        </logger>
-        
-        <!-- 生产环境根日志级别 -->
-        <root level="${LOG_LEVEL}">
-            <appender-ref ref="ASYNC_FILE"/>
-            <appender-ref ref="ASYNC_ERROR_FILE"/>
-            <appender-ref ref="ASYNC_SECURITY_FILE"/>
-            <appender-ref ref="ASYNC_PERFORMANCE_FILE"/>
+        <root level="INFO">
+            <appender-ref ref="ASYNC_APP"/>
+            <appender-ref ref="ASYNC_ERROR"/>
         </root>
     </springProfile>
 
+    <!-- 默认配置 -->
+    <springProfile name="!dev &amp; !test &amp; !prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_APP"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+    </springProfile>
 </configuration>
